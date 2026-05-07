@@ -426,7 +426,7 @@ platform :ios do
     replace_assets
 
     build_ios_unsigned_or_simulator(
-      more_xc_args: "-sdk iphoneos CODE_SIGNING_ALLOWED=NO",
+      more_xc_args: "-sdk iphoneos CODE_SIGNING_ALLOWED=NO -destination 'generic/platform=iOS'",
       rel_build_dir: "Release-iphoneos",
       output_file: "Mattermost-unsigned.ipa",
     )
