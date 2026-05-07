@@ -26,7 +26,7 @@ jobs:
           node-version: '22.14.0'
 
       - name: Install JS dependencies
-        run: npm ci --ignore-scripts
+        run: npm ci
 
       - name: Install Fastlane & CocoaPods
         run: bundle install
