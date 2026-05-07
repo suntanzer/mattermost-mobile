@@ -1,0 +1,64 @@
+name: Build iOS Unsigned IPA
+
+on:
+  push:
+    branches:
+      - custom-voice
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15-large
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2.0'
+          bundler-cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.14.0'
+
+      - name: Install JS dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install Fastlane & CocoaPods
+        run: bundle install
+        working-directory: fastlane
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app || sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+
+      - name: Install Pods
+        run: |
+          cd ios
+          RCT_NEW_ARCH_ENABLED=0 bundle exec pod install
+        env:
+          NO_FLIPPER: 1
+
+      - name: Build unsigned IPA
+        run: bundle exec fastlane ios unsigned
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mattermost-unsigned-ipa
+          path: |
+            Mattermost-unsigned.ipa
+            ios/Build/Products/**/*.app
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: List build outputs
+        if: always()
+        run: |
+          echo "=== Root ==="
+          ls -lh *.ipa 2>/dev/null || echo "No IPA in root"
+          echo "=== ios/Build/Products ==="
+          find ios/Build/Products -name "*.app" -o -name "*.ipa" 2>/dev/null || echo "No outputs found"
