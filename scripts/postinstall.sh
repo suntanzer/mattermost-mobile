@@ -15,7 +15,11 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     echo "🔐 INTUNE_ENABLED detected"
     npm run intune:init
   elif [[ $(uname -p) == 'arm' ]]; then
-    installPodsM1
+    if arch -x86_64 true >/dev/null 2>&1; then
+      installPodsM1
+    else
+      installPods
+    fi
   else
     installPods
   fi
