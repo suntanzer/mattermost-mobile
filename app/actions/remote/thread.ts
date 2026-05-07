@@ -46,7 +46,7 @@ export const fetchAndSwitchToThread = async (serverUrl: string, rootId: string, 
     }
 
     // Load thread before we open to the thread modal
-    fetchPostThread(serverUrl, rootId, undefined, false, groupLabel);
+    await fetchPostThread(serverUrl, rootId, undefined, false, groupLabel);
 
     // Mark thread as read
     const isCRTEnabled = await getIsCRTEnabled(database);
@@ -463,6 +463,17 @@ export const syncTeamThreads = async (
                 }
             }
         }
+
+        // Background-fetch latest reply posts so the thread list can show them immediately
+        const threadsWithReplies = threads.filter((t) => t.reply_count > 0);
+        if (threadsWithReplies.length) {
+            Promise.allSettled(
+                threadsWithReplies.map((t) =>
+                    fetchPostThread(serverUrl, t.id),
+                ),
+            ).catch(() => { /* noop */ });
+        }
+
         return {error: false, models};
     } catch (error) {
         return {error};
@@ -523,6 +534,16 @@ export const loadEarlierThreads = async (serverUrl: string, teamId: string, last
                     return {error: err};
                 }
             }
+        }
+
+        // Background-fetch latest reply posts for newly loaded threads
+        const threadsWithReplies = threads.filter((t) => t.reply_count > 0);
+        if (threadsWithReplies.length) {
+            Promise.allSettled(
+                threadsWithReplies.map((t) =>
+                    fetchPostThread(serverUrl, t.id),
+                ),
+            ).catch(() => { /* noop */ });
         }
 
         return {models, threads};
