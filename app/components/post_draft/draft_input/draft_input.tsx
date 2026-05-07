@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import RewritingIndicator from '@agents/components/rewriting_indicator';
-import React, {useCallback} from 'react';
+import React, {useCallback, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Keyboard, type LayoutChangeEvent, Platform, ScrollView, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
@@ -22,6 +22,7 @@ import QuickActions from '../quick_actions';
 import SendAction from '../send_button';
 import Typing from '../typing';
 import Uploads from '../uploads';
+import VoiceRecorder from '../voice_recorder';
 
 import Header from './header';
 
@@ -148,6 +149,15 @@ function DraftInput({
     const isTablet = useIsTablet();
 
     const {inputRef, focusInput: focus} = useKeyboardAnimationContext();
+    const [isRecording, setIsRecording] = useState(false);
+
+    const handleStartVoiceRecording = useCallback(() => {
+        setIsRecording(true);
+    }, []);
+
+    const handleStopVoiceRecording = useCallback(() => {
+        setIsRecording(false);
+    }, []);
 
     const handleLayout = useCallback((e: LayoutChangeEvent) => {
         updatePostInputTop(e.nativeEvent.layout.height);
@@ -248,29 +258,38 @@ function DraftInput({
                         channelId={channelId}
                         rootId={rootId}
                     />
-                    <View style={style.actionsContainer}>
-                        <QuickActions
-                            testID={quickActionsTestID}
-                            fileCount={files.length}
-                            addFiles={addFiles}
-                            updateValue={updateValue}
-                            value={value}
-                            postPriority={postPriority}
-                            updatePostPriority={updatePostPriority}
-                            canShowPostPriority={canShowPostPriority}
-                            postBoRConfig={postBoRConfig}
-                            updatePostBoRStatus={updatePostBoRStatus}
-                            focus={focus}
-                            location={location}
+                    {isRecording ? (
+                        <VoiceRecorder
+                            channelId={channelId}
+                            rootId={rootId}
+                            onClose={handleStopVoiceRecording}
                         />
-                        <SendAction
-                            testID={sendActionTestID}
-                            disabled={sendActionDisabled}
-                            sendMessage={handleSendMessage}
-                            showScheduledPostOptions={handleShowScheduledPostOptions}
-                            scheduledPostEnabled={scheduledPostsEnabled}
-                        />
-                    </View>
+                    ) : (
+                        <View style={style.actionsContainer}>
+                            <QuickActions
+                                testID={quickActionsTestID}
+                                fileCount={files.length}
+                                addFiles={addFiles}
+                                updateValue={updateValue}
+                                value={value}
+                                postPriority={postPriority}
+                                updatePostPriority={updatePostPriority}
+                                canShowPostPriority={canShowPostPriority}
+                                postBoRConfig={postBoRConfig}
+                                updatePostBoRStatus={updatePostBoRStatus}
+                                focus={focus}
+                                location={location}
+                                onStartVoiceRecording={handleStartVoiceRecording}
+                            />
+                            <SendAction
+                                testID={sendActionTestID}
+                                disabled={sendActionDisabled}
+                                sendMessage={handleSendMessage}
+                                showScheduledPostOptions={handleShowScheduledPostOptions}
+                                scheduledPostEnabled={scheduledPostsEnabled}
+                            />
+                        </View>
+                    )}
                 </ScrollView>
             </SafeAreaView>
         </>

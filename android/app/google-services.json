@@ -78,6 +78,27 @@
         }
       }
     }
+    ,
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:184930218130:android:c7debfa7ea3f75a7",
+        "android_client_info": {
+          "package_name": "com.mattermost.custom"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "184930218130-8nahrspll1opff0uogtkh2qsv8coqngo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyASRwdI3DKpyjt_gMbL1MpViI3BTHB9rFg"
+        }
+      ],
+      "services": {}
+    }
   ],
   "configuration_version": "1"
 }

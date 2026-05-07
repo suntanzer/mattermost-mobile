@@ -10,10 +10,12 @@ import {Keyboard, StyleSheet, Text, type TextStyle, TouchableOpacity, View} from
 import FormattedText from '@components/formatted_text';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import {Screens} from '@constants';
+import {SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {bottomSheet, dismissBottomSheet, goToScreen} from '@screens/navigation';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {getHighlightLanguageFromNameOrAlias, getHighlightLanguageName} from '@utils/markdown';
+import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import type {SyntaxHiglightProps} from '@typings/components/syntax_highlight';
@@ -78,7 +80,16 @@ const MarkdownCodeBlock = ({language = '', content, textStyle, theme}: MarkdownC
         return syntaxHighlighter;
     }, []);
 
+    // Tap = copy to clipboard (Telegram-style)
     const handlePress = usePreventDoubleTap(useCallback(() => {
+        if (managedConfig?.copyAndPasteProtection !== 'true' && content) {
+            Clipboard.setString(content);
+            showSnackBar({barType: SNACK_BAR_TYPE.CODE_COPIED});
+        }
+    }, [managedConfig?.copyAndPasteProtection, content]));
+
+    // Long-press = open full code viewer
+    const handleLongPress = useCallback(() => {
         const screen = Screens.CODE;
         const passProps = {
             code: content,
@@ -109,47 +120,7 @@ const MarkdownCodeBlock = ({language = '', content, textStyle, theme}: MarkdownC
         requestAnimationFrame(() => {
             goToScreen(screen, title, passProps);
         });
-    }, [content, intl, language, textStyle]));
-
-    const handleLongPress = useCallback(() => {
-        if (managedConfig?.copyAndPasteProtection !== 'true') {
-            const renderContent = () => {
-                return (
-                    <View
-                        testID='at_mention.bottom_sheet'
-                        style={style.bottomSheet}
-                    >
-                        <SlideUpPanelItem
-                            leftIcon='content-copy'
-                            onPress={() => {
-                                dismissBottomSheet();
-                                Clipboard.setString(content);
-                            }}
-                            testID='at_mention.bottom_sheet.copy_code'
-                            text={intl.formatMessage({id: 'mobile.markdown.code.copy_code', defaultMessage: 'Copy Code'})}
-                        />
-                        <SlideUpPanelItem
-                            destructive={true}
-                            leftIcon='cancel'
-                            onPress={() => {
-                                dismissBottomSheet();
-                            }}
-                            testID='at_mention.bottom_sheet.cancel'
-                            text={intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'})}
-                        />
-                    </View>
-                );
-            };
-
-            bottomSheet({
-                closeButtonId: 'close-code-block',
-                renderContent,
-                snapPoints: [1, bottomSheetSnapPoint(2, ITEM_HEIGHT)],
-                title: intl.formatMessage({id: 'post.options.title', defaultMessage: 'Options'}),
-                theme,
-            });
-        }
-    }, [managedConfig?.copyAndPasteProtection, intl, theme, style.bottomSheet, content]);
+    }, [content, intl, language, textStyle]);
 
     const trimContent = (text: string) => {
         const lines = text.split('\n');

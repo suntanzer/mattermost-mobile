@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import * as WebBrowser from 'expo-web-browser';
 import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
 import {DeviceEventEmitter, StyleSheet, View} from 'react-native';
@@ -18,6 +19,7 @@ import type {AvailableScreens} from '@typings/screens/navigation';
 export type OptionsType = 'all' | 'message';
 
 type Props = {
+    isBot?: boolean;
     location?: AvailableScreens;
     type: OptionsType;
     userId: string;
@@ -45,9 +47,12 @@ const styles = StyleSheet.create({
     singleContainer: {
         marginBottom: 20,
     },
+    fileManagerButton: {
+        marginTop: 8,
+    },
 });
 
-const UserProfileOptions = ({location, type, userId, username}: Props) => {
+const UserProfileOptions = ({isBot, location, type, userId, username}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
@@ -64,6 +69,14 @@ const UserProfileOptions = ({location, type, userId, username}: Props) => {
             switchToChannelById(serverUrl, data.id);
         }
     }, [userId, serverUrl]);
+
+    const openFileManager = useCallback(async () => {
+        const url = `https://mm.wextralogistics.com/botfm/${userId}/`;
+        await dismissBottomSheet(Screens.USER_PROFILE);
+        WebBrowser.openBrowserAsync(url, {
+            presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+        });
+    }, [userId]);
 
     if (type === 'all') {
         return (
@@ -96,6 +109,19 @@ const UserProfileOptions = ({location, type, userId, username}: Props) => {
                 text={intl.formatMessage({id: 'channel_info.send_mesasge', defaultMessage: 'Send message'})}
                 iconName='send'
             />
+            {isBot && (
+                <View style={styles.fileManagerButton}>
+                    <Button
+                        onPress={openFileManager}
+                        testID='user_profile_options.file_manager.option'
+                        size='lg'
+                        emphasis='tertiary'
+                        theme={theme}
+                        text='文件管理器'
+                        iconName='folder-outline'
+                    />
+                </View>
+            )}
         </View>
     );
 };

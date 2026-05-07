@@ -11,6 +11,8 @@ import {useTheme} from '@context/theme';
 import {useFocusAfterEmojiDismiss} from '@hooks/useFocusAfterEmojiDismiss';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
+import {QUICK_CMD_TRIGGER} from '@components/autocomplete/bang_suggestion/bang_suggestion';
+
 type Props = {
     testID?: string;
     disabled?: boolean;
@@ -46,29 +48,33 @@ export default function InputQuickAction({
     const {focus: focusWithEmojiDismiss} = useFocusAfterEmojiDismiss(inputRef, focus);
 
     const onPress = useCallback(() => {
+        if (inputType === 'slash') {
+            // Slash button: set input to trigger char to show quick commands
+            updateValue(QUICK_CMD_TRIGGER);
+            if (cursorPositionRef) {
+                cursorPositionRef.current = 1;
+            }
+            if (updateCursorPosition) {
+                updateCursorPosition(1);
+            }
+            focusWithEmojiDismiss();
+            return;
+        }
+
+        // at mention
         if (cursorPositionRef && updateCursorPosition) {
             const currentCursorPosition = cursorPositionRef.current;
 
             updateValue((v) => {
-                if (inputType === 'at') {
-                    let insertedText = '@';
-                    const charBeforeCursor = currentCursorPosition > 0 ? v[currentCursorPosition - 1] : '';
+                let insertedText = '@';
+                const charBeforeCursor = currentCursorPosition > 0 ? v[currentCursorPosition - 1] : '';
 
-                    if (currentCursorPosition === v.length && currentCursorPosition > 0 && charBeforeCursor !== ' ') {
-                        insertedText = ' @';
-                    }
-
-                    const newValue = v.slice(0, currentCursorPosition) + insertedText + v.slice(currentCursorPosition);
-                    const newCursorPosition = currentCursorPosition + insertedText.length;
-
-                    cursorPositionRef.current = newCursorPosition;
-                    updateCursorPosition(newCursorPosition);
-
-                    return newValue;
+                if (currentCursorPosition === v.length && currentCursorPosition > 0 && charBeforeCursor !== ' ') {
+                    insertedText = ' @';
                 }
 
-                const newValue = v.slice(0, currentCursorPosition) + '/' + v.slice(currentCursorPosition);
-                const newCursorPosition = currentCursorPosition + 1;
+                const newValue = v.slice(0, currentCursorPosition) + insertedText + v.slice(currentCursorPosition);
+                const newCursorPosition = currentCursorPosition + insertedText.length;
 
                 cursorPositionRef.current = newCursorPosition;
                 updateCursorPosition(newCursorPosition);
@@ -77,13 +83,10 @@ export default function InputQuickAction({
             });
         } else {
             updateValue((v) => {
-                if (inputType === 'at') {
-                    if (v.length > 0 && !v.endsWith(' ')) {
-                        return `${v} @`;
-                    }
-                    return `${v}@`;
+                if (v.length > 0 && !v.endsWith(' ')) {
+                    return `${v} @`;
                 }
-                return '/';
+                return `${v}@`;
             });
         }
         focusWithEmojiDismiss();

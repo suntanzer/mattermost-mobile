@@ -18,7 +18,6 @@ import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
 import {isTablet} from '@utils/helpers';
 import {logError} from '@utils/log';
-import {changeOpacity} from '@utils/theme';
 
 import type Model from '@nozbe/watermelondb/Model';
 
@@ -123,16 +122,27 @@ export const switchToThread = async (serverUrl: string, rootId: string, isFromNo
         // Get translation by user locale
         const translations = getTranslations(user.locale);
 
-        // Get title translation or default title message
-        const title = translations[threadMessages.thread.id] || 'Thread';
-
-        let subtitle = '';
-        if (channel?.type === General.DM_CHANNEL) {
-            subtitle = channel.displayName;
+        // Extract topic from root post message for header
+        let topic = '';
+        const msg = post.message || '';
+        const nlIdx = msg.indexOf('\n\n');
+        if (nlIdx !== -1) {
+            const topicLine = msg.substring(0, nlIdx);
+            const m = topicLine.match(/^\[\s*(.+?)\s*\]$/) ||
+                      topicLine.match(/^\*\*📌\s*(.+?)\*\*$/) ||
+                      topicLine.match(/^\*\*\s*(.+?)\s*\*\*$/);
+            if (m) {
+                topic = '📌 ' + m[1];
+            }
         } else {
-            // Get translation or default message
-            subtitle = translations[threadMessages.threadIn.id] || 'in {channelName}';
-            subtitle = subtitle.replace('{channelName}', channel.displayName);
+            const bm = msg.match(/^\[\s*(.+?)\s*\]/);
+            if (bm) {
+                topic = '📌 ' + bm[1];
+            }
+        }
+        // No topic found — fallback to root post message
+        if (!topic) {
+            topic = msg.split('\n')[0] || translations[threadMessages.thread.id] || 'Thread';
         }
 
         DeviceEventEmitter.emit(Events.CLOSE_INPUT_ACCESSORY_VIEW);
@@ -140,11 +150,14 @@ export const switchToThread = async (serverUrl: string, rootId: string, isFromNo
         goToScreen(Screens.THREAD, '', {rootId}, {
             topBar: {
                 title: {
-                    text: title,
-                },
-                subtitle: {
-                    color: changeOpacity(EphemeralStore.theme!.sidebarHeaderTextColor, 0.72),
-                    text: subtitle,
+                    component: {
+                        name: Screens.THREAD_TOPIC_TITLE,
+                        alignment: 'fill',
+                        passProps: {
+                            topic,
+                            channelName: channel.displayName,
+                        },
+                    },
                 },
                 noBorder: true,
                 scrollEdgeAppearance: {

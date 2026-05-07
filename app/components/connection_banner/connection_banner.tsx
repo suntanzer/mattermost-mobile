@@ -41,6 +41,14 @@ const getStyle = makeStyleSheetFromTheme((theme: Theme) => {
             backgroundColor: theme.sidebarBg,
             zIndex: 1,
         },
+        overlay: {
+            position: 'absolute' as const,
+            top: 0,
+            left: 0,
+            right: 0,
+            height: ANNOUNCEMENT_BAR_HEIGHT,
+            zIndex: 10,
+        },
         bannerContainerNotConnected: {
             ...bannerContainer,
             backgroundColor: theme.centerChannelColor,
@@ -93,17 +101,21 @@ const ConnectionBanner = ({
     }, [height, visible]);
 
     const bannerStyle = useAnimatedStyle(() => ({
-        height: height.value,
+        opacity: height.value / ANNOUNCEMENT_BAR_HEIGHT,
     }));
+
+    if (!visible) {
+        return null;
+    }
 
     return (
         <Animated.View
-            style={[style.background, bannerStyle]}
+            style={[style.background, style.overlay, bannerStyle]}
+            pointerEvents='none'
         >
             <View
                 style={isShowingConnectedBanner ? style.bannerContainerConnected : style.bannerContainerNotConnected}
             >
-                {visible &&
                 <View
                     style={style.wrapper}
                 >
@@ -123,7 +135,6 @@ const ConnectionBanner = ({
                         </Text>
                     </Text>
                 </View>
-                }
             </View>
         </Animated.View>
     );

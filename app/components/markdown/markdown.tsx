@@ -3,6 +3,7 @@
 /* eslint-disable max-lines */
 
 import {useManagedConfig} from '@mattermost/react-native-emm';
+import Clipboard from '@react-native-clipboard/clipboard';
 import {Parser, Node} from 'commonmark';
 import Renderer from 'commonmark-react-renderer';
 import React, {type ReactElement, useCallback, useMemo, useRef} from 'react';
@@ -12,9 +13,11 @@ import CompassIcon from '@components/compass_icon';
 import EditedIndicator from '@components/edited_indicator';
 import Emoji from '@components/emoji';
 import FormattedText from '@components/formatted_text';
+import {SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useServerUrl} from '@context/server';
 import {logError} from '@utils/log';
 import {computeTextStyle, getMarkdownBlockStyles, getMarkdownTextStyles} from '@utils/markdown';
+import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -340,6 +343,12 @@ const Markdown = ({
             <Text
                 style={computeTextStyle(textStyles, [baseTextStyle, code], context)}
                 testID='markdown_code_span'
+                onPress={() => {
+                    if (literal) {
+                        Clipboard.setString(literal);
+                        showSnackBar({barType: SNACK_BAR_TYPE.TEXT_COPIED});
+                    }
+                }}
             >
                 {literal}
             </Text>

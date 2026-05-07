@@ -456,6 +456,7 @@ const PostList = ({
                 ListFooterComponent={footer}
                 maintainVisibleContentPosition={SCROLL_POSITION_CONFIG}
                 maxToRenderPerBatch={10}
+                windowSize={Platform.OS === 'android' ? 10 : 21}
                 onEndReached={onEndReached}
                 onEndReachedThreshold={0.9}
                 onScroll={onScrollProp}

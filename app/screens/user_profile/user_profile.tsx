@@ -151,6 +151,9 @@ const UserProfile = ({
 
         if (showUserProfileOptions) {
             title += showOptions === 'all' ? OPTIONS_HEIGHT : SINGLE_OPTION_HEIGHT;
+            if (showOptions === 'message' && user.isBot) {
+                title += SINGLE_OPTION_HEIGHT + 8; // file manager button
+            }
         }
 
         const optionsCount = [
@@ -218,6 +221,7 @@ const UserProfile = ({
                 />
                 {showUserProfileOptions &&
                     <UserProfileOptions
+                        isBot={user.isBot}
                         location={location}
                         type={showOptions}
                         username={user.username}

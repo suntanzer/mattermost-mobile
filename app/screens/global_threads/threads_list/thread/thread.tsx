@@ -10,6 +10,7 @@ import {fetchAndSwitchToThread} from '@actions/remote/thread';
 import CompassIcon from '@components/compass_icon';
 import FormattedText from '@components/formatted_text';
 import FriendlyDate from '@components/friendly_date';
+import ProfilePicture from '@components/profile_picture';
 import RemoveMarkdown from '@components/remove_markdown';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {Screens} from '@constants';
@@ -18,12 +19,8 @@ import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {bottomSheetModalOptions, showModal, showModalOverCurrentContext} from '@screens/navigation';
-import {getPostTranslatedMessage, getPostTranslation} from '@utils/post';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {displayUsername} from '@utils/user';
-
-import ThreadFooter from './thread_footer';
 
 import type ChannelModel from '@typings/database/models/servers/channel';
 import type PostModel from '@typings/database/models/servers/post';
@@ -40,14 +37,79 @@ type Props = {
     testID: string;
     thread: ThreadModel;
     isChannelAutotranslated: boolean;
+    lastReplyPost?: PostModel;
+    lastReplyAuthor?: UserModel;
 };
+
+// Extract topic from root post message.
+// Supports all plugin formats:
+//   [ topic ]\n\noriginal      — current bracket format
+//   [ topic ]:original         — bracket without \n\n separator
+//   **📌 topic**\n\noriginal   — v0.2.0 pin format
+//   ** topic**\n\noriginal     — generic bold format
+//   <!-- thread-topic -->...   — v0.1.0 legacy
+export function extractTopic(message: string): {topic: string; original: string} {
+    // Strategy 1: Try \n\n separator first
+    const nlIdx = message.indexOf('\n\n');
+    if (nlIdx !== -1) {
+        const topicLine = message.substring(0, nlIdx);
+        const original = message.substring(nlIdx + 2);
+
+        // [topic]
+        const bm = topicLine.match(/^\[\s*(.+?)\s*\]$/);
+        if (bm) {
+            return {topic: bm[1], original};
+        }
+
+        // **📌 topic**
+        const pm = topicLine.match(/^\*\*📌\s*(.+?)\*\*$/);
+        if (pm) {
+            return {topic: pm[1], original};
+        }
+
+        // **topic**
+        const boldm = topicLine.match(/^\*\*\s*(.+?)\s*\*\*$/);
+        if (boldm) {
+            return {topic: boldm[1], original};
+        }
+
+        // <!-- thread-topic -->...
+        if (topicLine.includes('<!-- thread-topic -->')) {
+            let t = topicLine.replace('<!-- thread-topic -->', '').trim();
+            t = t.replace(/^\*\*📌\s*/, '').replace(/\*\*$/, '').trim();
+            if (t) {
+                return {topic: t, original};
+            }
+        }
+    }
+
+    // Strategy 2: No \n\n — try matching [topic] at the start of the message
+    const bracketStart = message.match(/^\[\s*(.+?)\s*\]([\s:]*)([\s\S]*)$/);
+    if (bracketStart) {
+        return {topic: bracketStart[1], original: bracketStart[3]};
+    }
+
+    // Strategy 3: Try **📌 topic** at the start without \n\n
+    const pinStart = message.match(/^\*\*📌\s*(.+?)\*\*([\s:]*)([\s\S]*)$/);
+    if (pinStart) {
+        return {topic: pinStart[1], original: pinStart[3]};
+    }
+
+    // Strategy 4: Try **topic** at the start without \n\n
+    const boldStart = message.match(/^\*\*\s*(.+?)\s*\*\*([\s:]*)([\s\S]*)$/);
+    if (boldStart) {
+        return {topic: boldStart[1], original: boldStart[3]};
+    }
+
+    return {topic: '', original: message};
+}
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     return {
         container: {
             paddingTop: 12,
             paddingRight: 16,
-            paddingBottom: 6,
+            paddingBottom: 10,
             flex: 1,
             flexDirection: 'row',
             borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
@@ -60,32 +122,38 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         postContainer: {
             flex: 1,
         },
-        header: {
-            alignItems: 'center',
-            flex: 1,
-            flexDirection: 'row',
-            marginBottom: 6,
-        },
-        headerInfoContainer: {
-            alignItems: 'center',
-            flex: 1,
-            flexDirection: 'row',
-            marginRight: 12,
-            overflow: 'hidden',
-            gap: 6,
-        },
-        threadDeleted: {
-            color: changeOpacity(theme.centerChannelColor, 0.72),
-            fontStyle: 'italic',
-        },
-        threadStarter: {
+        // Line 1: Topic
+        topicText: {
             color: theme.centerChannelColor,
             ...typography('Body', 200, 'SemiBold'),
+            marginBottom: 4,
+        },
+        // Line 2-3: Reply/content with avatar
+        replyRow: {
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            marginBottom: 6,
+        },
+        replyAvatar: {
+            marginRight: 6,
+            marginTop: 2,
+        },
+        replyContent: {
+            flex: 1,
+        },
+        replyText: {
+            color: changeOpacity(theme.centerChannelColor, 0.72),
+            ...typography('Body', 100),
+        },
+        // Line 4: Footer — channel + replies + time (right-aligned)
+        footer: {
+            flexDirection: 'row',
+            alignItems: 'center',
         },
         channelNameContainer: {
             backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
             borderRadius: 4,
-            maxWidth: '50%',
+            maxWidth: '40%',
         },
         channelName: {
             color: theme.centerChannelColor,
@@ -95,14 +163,24 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             marginHorizontal: 6,
             marginVertical: 2,
         },
-        date: {
-            color: changeOpacity(theme.centerChannelColor, 0.64),
-            ...typography('Body', 50, 'Regular'),
+        footerMeta: {
+            color: changeOpacity(theme.centerChannelColor, 0.56),
+            ...typography('Body', 50),
+            marginLeft: 8,
         },
-        message: {
-            color: theme.centerChannelColor,
-            ...typography('Body', 200),
+        footerMetaUnread: {
+            color: theme.sidebarTextActiveBorder,
+            ...typography('Body', 50, 'SemiBold'),
+            marginLeft: 8,
         },
+        footerSpacer: {
+            flex: 1,
+        },
+        footerTime: {
+            color: changeOpacity(theme.centerChannelColor, 0.56),
+            ...typography('Body', 50),
+        },
+        // Badge styles
         unreadDot: {
             width: 8,
             height: 8,
@@ -123,10 +201,14 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             alignSelf: 'center',
             color: theme.buttonColor,
         },
+        threadDeleted: {
+            color: changeOpacity(theme.centerChannelColor, 0.72),
+            fontStyle: 'italic',
+        },
     };
 });
 
-const Thread = ({author, channel, location, post, teammateNameDisplay, testID, thread, isChannelAutotranslated}: Props) => {
+const Thread = ({author, channel, location, post, teammateNameDisplay, testID, thread, isChannelAutotranslated, lastReplyPost, lastReplyAuthor}: Props) => {
     const intl = useIntl();
     const isTablet = useIsTablet();
     const theme = useTheme();
@@ -168,75 +250,60 @@ const Thread = ({author, channel, location, post, teammateNameDisplay, testID, t
         return null;
     }
 
-    const translation = getPostTranslation(post, intl.locale);
-    let message = post.message;
-    if (isChannelAutotranslated && post.type === '' && translation?.state === 'ready') {
-        message = getPostTranslatedMessage(message, translation);
-    }
-
-    const threadStarterName = displayUsername(author, intl.locale, teammateNameDisplay);
     const threadItemTestId = `${testID}.thread_item.${thread.id}`;
 
+    // --- Deleted post ---
+    if (post.deleteAt > 0) {
+        return (
+            <TouchableHighlight
+                underlayColor={changeOpacity(theme.buttonBg, 0.08)}
+                onLongPress={showThreadOptions}
+                onPress={showThread}
+                testID={threadItemTestId}
+            >
+                <View style={styles.container}>
+                    <View style={styles.badgeContainer}/>
+                    <View style={styles.postContainer}>
+                        <FormattedText
+                            id='threads.deleted'
+                            defaultMessage='Original Message Deleted'
+                            style={[styles.topicText, styles.threadDeleted]}
+                            numberOfLines={1}
+                        />
+                    </View>
+                </View>
+            </TouchableHighlight>
+        );
+    }
+
+    // --- Extract topic from root post ---
+    const {topic, original} = extractTopic(post.message);
+    const topicDisplay = topic || original.substring(0, 80) || '(no message)';
+
+    // --- Content for lines 2-3: prefer last reply, fallback to root post original ---
+    const replyMessage = lastReplyPost?.message;
+    const contentMessage = replyMessage || original;
+    const contentAuthor = replyMessage ? lastReplyAuthor : author;
+
+    // --- Badge (unread dot / mention count) ---
     const needBadge = thread.unreadMentions || thread.unreadReplies;
     let badgeComponent;
     if (needBadge) {
         if (thread.unreadMentions) {
             badgeComponent = (
-                <View
-                    style={styles.mentionBadge}
-                    testID={`${threadItemTestId}.unread_mentions.badge`}
-                >
+                <View style={styles.mentionBadge}>
                     <Text style={styles.mentionBadgeText}>{thread.unreadMentions > 99 ? '99+' : thread.unreadMentions}</Text>
                 </View>
             );
-        } else if (thread.unreadReplies) {
+        } else {
             badgeComponent = (
-                <View
-                    style={styles.unreadDot}
-                    testID={`${threadItemTestId}.unread_dot.badge`}
-                />
+                <View style={styles.unreadDot}/>
             );
         }
     }
 
-    let name;
-    let postBody;
-    if (!post || post.deleteAt > 0) {
-        name = (
-            <FormattedText
-                id='threads.deleted'
-                defaultMessage='Original Message Deleted'
-                style={[styles.threadStarter, styles.threadDeleted]}
-                numberOfLines={1}
-                testID={`${threadItemTestId}.thread_starter.user_display_name`}
-            />
-        );
-    } else {
-        name = (
-            <Text
-                style={styles.threadStarter}
-                numberOfLines={1}
-                testID={`${threadItemTestId}.thread_starter.user_display_name`}
-            >
-                {threadStarterName}
-            </Text>
-        );
-        if (message) {
-            postBody = (
-                <Text numberOfLines={2}>
-                    <RemoveMarkdown
-                        enableCodeSpan={true}
-                        enableEmoji={true}
-                        enableChannelLink={true}
-                        enableHardBreak={true}
-                        enableSoftBreak={true}
-                        baseStyle={styles.message}
-                        value={message.substring(0, 100)} // This substring helps to avoid ANR's
-                    />
-                </Text>
-            );
-        }
-    }
+    // --- Reply count text ---
+    const replyCountStyle = thread.unreadReplies ? styles.footerMetaUnread : styles.footerMeta;
 
     return (
         <TouchableHighlight
@@ -250,51 +317,73 @@ const Thread = ({author, channel, location, post, teammateNameDisplay, testID, t
                     {badgeComponent}
                 </View>
                 <View style={styles.postContainer}>
-                    <View style={styles.header}>
-                        <View style={styles.headerInfoContainer}>
-                            {name}
-                            {isChannelAutotranslated && post.type === '' && translation?.state === 'ready' && (
-                                <CompassIcon
-                                    name='translate'
-                                    size={16}
-                                    color={changeOpacity(theme.centerChannelColor, 0.56)}
+                    {/* Line 1: Topic */}
+                    <Text
+                        style={styles.topicText}
+                        numberOfLines={1}
+                        testID={`${threadItemTestId}.topic`}
+                    >
+                        {topic ? `📌 ${topicDisplay}` : topicDisplay}
+                    </Text>
+
+                    {/* Line 2-3: Content with avatar (last reply or root post fallback) */}
+                    {contentMessage ? (
+                        <View style={styles.replyRow}>
+                            <View style={styles.replyAvatar}>
+                                <ProfilePicture
+                                    author={contentAuthor}
+                                    size={20}
+                                    showStatus={false}
                                 />
-                            )}
-                            {threadStarterName !== channel?.displayName && (
-                                <View style={styles.channelNameContainer}>
-                                    <TouchableWithFeedback
-                                        onPress={onChannelNamePressed}
-                                        type={'native'}
-                                        underlayColor={changeOpacity(theme.buttonBg, 0.08)}
-                                        onPressIn={togglePressed}
-                                        onPressOut={togglePressed}
-                                    >
-                                        <Text
-                                            style={channelNameStyle}
-                                            numberOfLines={1}
-                                            testID={`${threadItemTestId}.thread_starter.channel_display_name`}
-                                        >
-                                            {channel?.displayName}
-                                        </Text>
-                                    </TouchableWithFeedback>
-                                </View>
-                            )}
+                            </View>
+                            <View style={styles.replyContent}>
+                                <Text numberOfLines={2}>
+                                    <RemoveMarkdown
+                                        enableCodeSpan={true}
+                                        enableEmoji={true}
+                                        enableChannelLink={true}
+                                        enableHardBreak={true}
+                                        enableSoftBreak={true}
+                                        baseStyle={styles.replyText}
+                                        value={contentMessage.substring(0, 150)}
+                                    />
+                                </Text>
+                            </View>
                         </View>
+                    ) : null}
+
+                    {/* Line 4: Footer — channel | replies | spacer | time (right-aligned) */}
+                    <View style={styles.footer}>
+                        <View style={styles.channelNameContainer}>
+                            <TouchableWithFeedback
+                                onPress={onChannelNamePressed}
+                                type={'native'}
+                                underlayColor={changeOpacity(theme.buttonBg, 0.08)}
+                                onPressIn={togglePressed}
+                                onPressOut={togglePressed}
+                            >
+                                <Text
+                                    style={channelNameStyle}
+                                    numberOfLines={1}
+                                >
+                                    {channel?.displayName}
+                                </Text>
+                            </TouchableWithFeedback>
+                        </View>
+                        {thread.replyCount > 0 && (
+                            <FormattedText
+                                id='threads.replies'
+                                defaultMessage='{count} {count, plural, one {reply} other {replies}}'
+                                style={replyCountStyle}
+                                values={{count: thread.replyCount}}
+                            />
+                        )}
+                        <View style={styles.footerSpacer}/>
                         <FriendlyDate
                             value={thread.lastReplyAt}
-                            style={styles.date}
+                            style={styles.footerTime}
                         />
                     </View>
-                    {postBody}
-                    {Boolean(post && thread) &&
-                    <ThreadFooter
-                        author={author}
-                        channelId={post!.channelId}
-                        location={location}
-                        testID={`${threadItemTestId}.footer`}
-                        thread={thread}
-                    />
-                    }
                 </View>
             </View>
         </TouchableHighlight>

@@ -44,7 +44,7 @@ type SnackBarProps = {
 
 const SNACK_BAR_WIDTH = 96;
 const SNACK_BAR_HEIGHT = 56;
-const SNACK_BAR_BOTTOM_RATIO = 0.04;
+const SNACK_BAR_TOP_MARGIN = 60;
 
 const caseScreens: AvailableScreens[] = [Screens.PERMALINK, Screens.MANAGE_CHANNEL_MEMBERS, Screens.MENTIONS, Screens.SAVED_MESSAGES];
 
@@ -73,7 +73,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         mobile: {
             backgroundColor: theme.centerChannelColor,
             width: `${SNACK_BAR_WIDTH}%`,
-            opacity: 1,
+            opacity: 0.7,
             height: TOAST_HEIGHT,
             alignSelf: 'center' as const,
             borderRadius: 9,
@@ -130,9 +130,9 @@ const SnackBar = ({
     const styles = getStyleSheet(theme);
     const gestureRootStyle = useMemo(() => {
         return {
-            bottom: SNACK_BAR_BOTTOM_RATIO * windowHeight,
+            top: SNACK_BAR_TOP_MARGIN,
         };
-    }, [windowHeight]);
+    }, []);
 
     const snackBarStyle = useMemo(() => {
         const diffWidth = windowWidth - TABLET_SIDEBAR_WIDTH;
@@ -241,7 +241,7 @@ const SnackBar = ({
             if (!isPanned.value) {
                 animateHiding(false);
             }
-        }, 3000);
+        }, 1500);
 
         return () => {
             stopTimers();

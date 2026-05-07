@@ -12,6 +12,7 @@ import {useIsTablet} from '@hooks/device';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import AtMention from './at_mention/';
+import BangSuggestion from './bang_suggestion/bang_suggestion';
 import ChannelMention from './channel_mention/';
 import EmojiSuggestion from './emoji_suggestion/';
 import SlashSuggestion from './slash_suggestion/';
@@ -115,10 +116,11 @@ const Autocomplete = ({
     const [showingEmoji, setShowingEmoji] = useState(false);
     const [showingCommand, setShowingCommand] = useState(false);
     const [showingAppCommand, setShowingAppCommand] = useState(false);
+    const [showingBangCommand, setShowingBangCommand] = useState(false);
 
     // const [showingDate, setShowingDate] = useState(false);
 
-    const hasElements = showingChannelMention || showingEmoji || showingAtMention || showingCommand || showingAppCommand; // || showingDate;
+    const hasElements = showingChannelMention || showingEmoji || showingAtMention || showingCommand || showingAppCommand || showingBangCommand; // || showingDate;
     const appsTakeOver = showingAppCommand;
     const showCommands = !(showingChannelMention || showingEmoji || showingAtMention);
 
@@ -214,6 +216,17 @@ const Autocomplete = ({
                         channelId={channelId}
                         rootId={rootId}
                         isAppsEnabled={isAppsEnabled}
+                    />
+                )}
+                {showCommands && channelId && (
+                    <BangSuggestion
+                        listStyle={style.listStyle}
+                        updateValue={updateValue}
+                        onShowingChange={setShowingBangCommand}
+                        value={value || ''}
+                        nestedScrollEnabled={nestedScrollEnabled}
+                        channelId={channelId}
+                        rootId={rootId}
                     />
                 )}
                 {/* {(isSearch && enableDateSuggestion) &&

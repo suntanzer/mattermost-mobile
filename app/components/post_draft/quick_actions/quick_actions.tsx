@@ -9,9 +9,9 @@ import BoRQuickAction from '@components/post_draft/quick_actions/bor_quick_actio
 import {Screens} from '@constants';
 
 import AttachmentAction from './attachment_quick_action';
-import EmojiAction from './emoji_quick_action';
 import InputAction from './input_quick_action';
 import PostPriorityAction from './post_priority_action';
+import VoiceAction from './voice_action';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -38,6 +38,7 @@ type Props = {
     postBoRConfig?: PostBoRConfig;
     updatePostBoRStatus?: (config: PostBoRConfig) => void;
     focus: () => void;
+    onStartVoiceRecording?: () => void;
 }
 
 export const QUICK_ACTIONS_HEIGHT = 44;
@@ -72,6 +73,7 @@ export default function QuickActions({
     updatePostBoRStatus,
     postBoRConfig,
     location,
+    onStartVoiceRecording,
 }: Props) {
     const atDisabled = value.endsWith('@');
     const slashDisabled = value.length > 0;
@@ -110,18 +112,18 @@ export default function QuickActions({
                 updateValue={updateValue}
                 focus={focus}
             />
-            {canShowSlashCommands && (
-                <InputAction
-                    testID={slashInputActionTestID}
-                    disabled={slashDisabled}
-                    inputType='slash'
-                    updateValue={updateValue}
-                    focus={focus}
-                />
-            )}
-            {canShowEmojiPicker && (
-                <EmojiAction
-                    testID={emojiActionTestID}
+            <InputAction
+                testID={slashInputActionTestID}
+                disabled={slashDisabled}
+                inputType='slash'
+                updateValue={updateValue}
+                focus={focus}
+            />
+            {onStartVoiceRecording && (
+                <VoiceAction
+                    testID={`${testID}.voice_action`}
+                    disabled={value.length > 0}
+                    onPress={onStartVoiceRecording}
                 />
             )}
             {isAgentsEnabled && (

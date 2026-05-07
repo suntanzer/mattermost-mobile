@@ -5,7 +5,7 @@ import AgentPost from '@agents/components/agent_post';
 import {isAgentPost} from '@agents/utils';
 import React, {type ReactNode, useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Platform, type StyleProp, View, type ViewStyle, TouchableHighlight, type LayoutChangeEvent} from 'react-native';
+import {Platform, Pressable, type StyleProp, View, type ViewStyle, TouchableHighlight, type LayoutChangeEvent} from 'react-native';
 import {KeyboardController} from 'react-native-keyboard-controller';
 
 import {removePost} from '@actions/local/post';
@@ -443,39 +443,57 @@ const Post = ({
         }
     }
 
+    // In thread view, use Pressable (long-press only) so inner Text onPress
+    // handlers (tap-to-copy on inline code) can receive touch events.
+    const isThreadView = location === Screens.THREAD;
+    const postContent = (
+        <>
+            <PreHeader
+                isConsecutivePost={isConsecutivePost}
+                isSaved={isSaved}
+                isPinned={post.isPinned}
+                skipSavedHeader={skipSavedHeader}
+                skipPinnedHeader={skipPinnedHeader}
+            />
+            <View style={[styles.container, consecutiveStyle]}>
+                {postAvatar}
+                <View style={rightColumnStyle}>
+                    {header}
+                    {body}
+                    {footer}
+                </View>
+                {unreadDot}
+            </View>
+        </>
+    );
+
     return (
         <View
             testID={testID}
             style={[styles.postStyle, style, highlightedStyle]}
             onLayout={onLayout}
         >
-            <TouchableHighlight
-                testID={itemTestID}
-                onPress={handlePress}
-                onLongPress={showPostOptions}
-                delayLongPress={200}
-                underlayColor={changeOpacity(theme.centerChannelColor, 0.1)}
-                style={styles.postContent}
-            >
-                <>
-                    <PreHeader
-                        isConsecutivePost={isConsecutivePost}
-                        isSaved={isSaved}
-                        isPinned={post.isPinned}
-                        skipSavedHeader={skipSavedHeader}
-                        skipPinnedHeader={skipPinnedHeader}
-                    />
-                    <View style={[styles.container, consecutiveStyle]}>
-                        {postAvatar}
-                        <View style={rightColumnStyle}>
-                            {header}
-                            {body}
-                            {footer}
-                        </View>
-                        {unreadDot}
-                    </View>
-                </>
-            </TouchableHighlight>
+            {isThreadView ? (
+                <Pressable
+                    testID={itemTestID}
+                    onLongPress={showPostOptions}
+                    delayLongPress={200}
+                    style={styles.postContent}
+                >
+                    {postContent}
+                </Pressable>
+            ) : (
+                <TouchableHighlight
+                    testID={itemTestID}
+                    onPress={handlePress}
+                    onLongPress={showPostOptions}
+                    delayLongPress={200}
+                    underlayColor={changeOpacity(theme.centerChannelColor, 0.1)}
+                    style={styles.postContent}
+                >
+                    {postContent}
+                </TouchableHighlight>
+            )}
             <ShimmerAnimation {...shimmerAnimationProps}/>
         </View>
     );

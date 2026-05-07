@@ -1,9 +1,8 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useEffect} from 'react';
-import {type StyleProp, type ViewStyle} from 'react-native';
-import Animated, {useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
+import React from 'react';
+import {type StyleProp, View, type ViewStyle} from 'react-native';
 
 import {TYPING_HEIGHT} from '@constants/post_draft';
 
@@ -20,24 +19,10 @@ function StatusIndicator({
     children,
     style,
 }: Props) {
-    const height = useSharedValue(0);
-
-    const animatedStyle = useAnimatedStyle(() => {
-        return {
-            height: withTiming(height.value),
-            marginBottom: 4,
-            overflow: 'hidden',
-        };
-    });
-
-    useEffect(() => {
-        height.value = visible ? STATUS_INDICATOR_HEIGHT : 0;
-    }, [visible, height]);
-
     return (
-        <Animated.View style={[animatedStyle, style]}>
-            {children}
-        </Animated.View>
+        <View style={[{height: STATUS_INDICATOR_HEIGHT, marginBottom: 4, overflow: 'hidden'}, style]}>
+            {visible ? children : null}
+        </View>
     );
 }
 

@@ -95,6 +95,7 @@ export const TEAM_SELECTOR_LIST = 'TeamSelectorList';
 export const TERMS_OF_SERVICE = 'TermsOfService';
 export const THREAD = 'Thread';
 export const THREAD_FOLLOW_BUTTON = 'ThreadFollowButton';
+export const THREAD_TOPIC_TITLE = 'ThreadTopicTitle';
 export const THREAD_OPTIONS = 'ThreadOptions';
 export const USER_PROFILE = 'UserProfile';
 export const SHOW_TRANSLATION = 'ShowTranslation';
@@ -190,6 +191,7 @@ export default {
     TERMS_OF_SERVICE,
     THREAD,
     THREAD_FOLLOW_BUTTON,
+    THREAD_TOPIC_TITLE,
     THREAD_OPTIONS,
     USER_PROFILE,
     SHOW_TRANSLATION,

@@ -149,10 +149,23 @@ const File = ({
         </TouchableWithFeedback>
     );
 
+    const isVoiceFile = file.name?.startsWith('voice_') && (file.extension === 'm4a' || file.name?.endsWith('.m4a'));
+
     let fileComponent;
     if (isRejected) {
         // Rejected files render as generic card regardless of file type
         fileComponent = renderCardWithImage(touchableWithPreview);
+    } else if (isVoiceFile || isAudio(file)) {
+        const renderAudioFile = (
+            <Animated.View style={[styles, style.audioFile]}>
+                <AudioFile
+                    file={file}
+                    canDownloadFiles={canDownloadFiles}
+                    enableSecureFilePreview={enableSecureFilePreview}
+                />
+            </Animated.View>
+        );
+        fileComponent = renderAudioFile;
     } else if (isVideo(file)) {
         const renderVideoFile = (
             <TouchableWithoutFeedback
@@ -240,18 +253,6 @@ const File = ({
                 }
             </View>
         );
-    } else if (isAudio(file)) {
-        const renderAudioFile = (
-            <Animated.View style={[styles, asCard ? style.imageVideo : style.audioFile]}>
-                <AudioFile
-                    file={file}
-                    canDownloadFiles={canDownloadFiles}
-                    enableSecureFilePreview={enableSecureFilePreview}
-                />
-            </Animated.View>
-        );
-
-        fileComponent = asCard ? renderCardWithImage(touchableWithPreview) : renderAudioFile;
     } else {
         fileComponent = renderCardWithImage(touchableWithPreview);
     }

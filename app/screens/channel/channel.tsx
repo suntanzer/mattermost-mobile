@@ -73,7 +73,7 @@ const Channel = ({
     useGMasDMNotice(currentUserId, channelType, dismissedGMasDMNotice, hasGMasDMFeature);
     const isTablet = useIsTablet();
     const insets = useSafeAreaInsets();
-    const [shouldRenderPosts, setShouldRenderPosts] = useState(false);
+    const [shouldRenderPosts, setShouldRenderPosts] = useState(Boolean(channelId));
     const switchingTeam = useTeamSwitch();
     const switchingChannels = useChannelSwitch();
     const defaultHeight = useDefaultHeaderHeight();
@@ -110,11 +110,7 @@ const Channel = ({
 
     const marginTop = defaultHeight + (isTablet ? 0 : -insets.top);
     useEffect(() => {
-        // This is done so that the header renders
-        // and the screen does not look totally blank
-        const raf = requestAnimationFrame(() => {
-            setShouldRenderPosts(Boolean(channelId));
-        });
+        setShouldRenderPosts(Boolean(channelId));
 
         // This is done to give time to the WS event
         const t = setTimeout(() => {
@@ -124,7 +120,6 @@ const Channel = ({
         storeLastViewedChannelIdAndServer(channelId);
 
         return () => {
-            cancelAnimationFrame(raf);
             clearTimeout(t);
             removeLastViewedChannelIdAndServer();
             EphemeralStore.removeSwitchingToChannel(channelId);

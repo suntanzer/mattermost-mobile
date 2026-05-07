@@ -40,6 +40,10 @@ const styles = StyleSheet.create({
     containerStyle: {paddingTop: 12},
 });
 
+// Track last fetch time per channel to avoid redundant remote fetches
+const lastFetchTimeMap = new Map<string, number>();
+const FETCH_THROTTLE_MS = 30_000; // 30 seconds
+
 const ChannelPostList = ({
     channelId, contentContainerStyle, isCRTEnabled,
     lastViewedAt, posts, shouldShowJoinLeaveMessages,
@@ -82,9 +86,18 @@ const ChannelPostList = ({
         // If we have too few posts so the onEndReached may have been called while fetching
         // we call fetchPosts to make sure we have at least the latest page of posts
         if (!fetchingPosts && canLoadPost.current && posts.length < PER_PAGE_DEFAULT) {
-            // We do this just once
-            canLoadPost.current = false;
-            fetchPosts(serverUrl, channelId);
+            const cacheKey = `${serverUrl}:${channelId}`;
+            const lastFetch = lastFetchTimeMap.get(cacheKey) || 0;
+            const now = Date.now();
+
+            // Skip remote fetch if we fetched recently and already have local posts
+            if (posts.length > 0 && (now - lastFetch) < FETCH_THROTTLE_MS) {
+                canLoadPost.current = false;
+            } else {
+                canLoadPost.current = false;
+                lastFetchTimeMap.set(cacheKey, now);
+                fetchPosts(serverUrl, channelId);
+            }
         }
 
         // We only want to run this when the number of posts changes or we stop fetching posts

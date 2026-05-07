@@ -68,12 +68,13 @@ export const useImageAttachments = (filesInfo: FileInfo[]) => {
             const imageFile = isImage(file);
             const videoFile = isVideo(file);
             const audioFile = isAudio(file);
+            const isVoiceFile = file.name?.startsWith('voice_') && (file.extension === 'm4a' || file.name?.endsWith('.m4a'));
 
             // Check if file is rejected by plugin - treat rejected files as non-images
             // so they display as file cards instead of broken image previews
             const isRejected = file.id && EphemeralStore.isFileRejected(file.id);
 
-            if ((imageFile || videoFile || audioFile) && !isRejected) {
+            if ((imageFile || videoFile) && !audioFile && !isVoiceFile && !isRejected) {
                 let uri;
                 if (file.localPath) {
                     uri = file.localPath;
@@ -82,7 +83,7 @@ export const useImageAttachments = (filesInfo: FileInfo[]) => {
                     if (!file.id) {
                         return {images, nonImages};
                     }
-                    uri = (isGif(file) || videoFile || audioFile) ? buildFileUrl(serverUrl, file.id) : buildFilePreviewUrl(serverUrl, file.id);
+                    uri = (isGif(file) || videoFile) ? buildFileUrl(serverUrl, file.id) : buildFilePreviewUrl(serverUrl, file.id);
                 }
                 images.push({...file, uri});
             } else {

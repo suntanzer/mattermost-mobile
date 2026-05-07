@@ -1,7 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {uniqueId} from 'lodash';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {Platform, type LayoutChangeEvent, StyleSheet} from 'react-native';
 import {KeyboardProvider} from 'react-native-keyboard-controller';
@@ -76,22 +75,8 @@ const Thread = ({
     useAndroidHardwareBackHandler(componentId, close);
 
     useEffect(() => {
-        if (isCRTEnabled && rootId) {
-            const id = `${componentId}-${rootId}-${uniqueId()}`;
-            const name = Screens.THREAD_FOLLOW_BUTTON;
-            setButtons(componentId, {rightButtons: [{
-                id,
-                component: {
-                    name,
-                    passProps: {
-                        threadId: rootId,
-                    },
-                },
-            }]});
-        } else {
-            setButtons(componentId, {rightButtons: []});
-        }
-    }, [componentId, rootId, isCRTEnabled]);
+        setButtons(componentId, {rightButtons: []});
+    }, [componentId]);
 
     useEffect(() => {
         // when opened from notification, first screen in stack is HOME
