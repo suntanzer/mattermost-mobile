@@ -57,7 +57,16 @@ class DatabaseManagerSingleton {
             PlaybookRunModel, PlaybookChecklistModel, PlaybookChecklistItemModel, PlaybookRunPropertyFieldModel, PlaybookRunPropertyValueModel,
         ];
 
-        this.databaseDirectory = Platform.OS === 'ios' ? getIOSAppGroupDetails().appGroupDatabase : `${documentDirectory}/databases/`;
+        if (Platform.OS === 'ios') {
+            try {
+                const details = getIOSAppGroupDetails();
+                this.databaseDirectory = details.appGroupDatabase || `${documentDirectory}/databases/`;
+            } catch {
+                this.databaseDirectory = `${documentDirectory}/databases/`;
+            }
+        } else {
+            this.databaseDirectory = `${documentDirectory}/databases/`;
+        }
     }
 
     /**
