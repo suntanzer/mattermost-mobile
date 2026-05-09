@@ -44,41 +44,62 @@ export const getActiveServerUrl = async () => {
     return serverUrl || undefined;
 };
 
-export const setServerCredentials = (serverUrl: string, token: string, preauthSecret?: string) => {
+export const setServerCredentials = async (serverUrl: string, token: string, preauthSecret?: string) => {
     if (!(serverUrl && token)) {
         return;
     }
 
-    try {
-        let accessGroup;
-        if (Platform.OS === 'ios') {
+    let accessGroup: string | undefined;
+    if (Platform.OS === 'ios') {
+        try {
             const appGroup = getIOSAppGroupDetails();
             accessGroup = appGroup.appGroupIdentifier;
+        } catch {
+            // App Group unavailable (sideloaded app)
         }
+    }
 
-        const options: KeyChain.SetOptions = {
-            accessGroup,
-            securityLevel: KeyChain.SECURITY_LEVEL.SECURE_SOFTWARE,
-        };
+    const baseOptions: KeyChain.SetOptions = {
+        securityLevel: KeyChain.SECURITY_LEVEL.SECURE_SOFTWARE,
+    };
 
-        // Store main token credentials (clean format)
-        KeyChain.setInternetCredentials(serverUrl, token, token, options);
-
-        // Store preauth secret separately if provided
-        if (preauthSecret) {
-            KeyChain.setGenericPassword('preshared_secret', preauthSecret, {
-                server: serverUrl,
-                ...options,
-            });
-        } else {
-            // Remove preauth secret if not provided
-            KeyChain.resetGenericPassword({
-                server: serverUrl,
-                ...options,
-            });
+    // Try with access group first, fall back to without for sideloaded apps
+    let stored = false;
+    if (accessGroup) {
+        try {
+            await KeyChain.setInternetCredentials(serverUrl, token, token, {...baseOptions, accessGroup});
+            stored = true;
+        } catch {
+            // Access group invalid (sideloaded app without entitlement)
         }
-    } catch (e) {
-        logWarning('could not set credentials', e);
+    }
+    if (!stored) {
+        try {
+            await KeyChain.setInternetCredentials(serverUrl, token, token, baseOptions);
+        } catch (e) {
+            logWarning('could not set credentials', e);
+        }
+    }
+
+    // Store preauth secret
+    if (preauthSecret) {
+        try {
+            await KeyChain.setGenericPassword('preshared_secret', preauthSecret, {
+                server: serverUrl,
+                ...baseOptions,
+            });
+        } catch (e) {
+            logWarning('could not set preauth secret', e);
+        }
+    } else {
+        try {
+            await KeyChain.resetGenericPassword({
+                server: serverUrl,
+                ...baseOptions,
+            });
+        } catch {
+            // ignore
+        }
     }
 };
 
