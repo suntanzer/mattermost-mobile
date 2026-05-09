@@ -151,7 +151,12 @@ function populateMaps() {
 }
 
 export async function deleteV1Data() {
-    const dir = Platform.OS === 'ios' ? getIOSAppGroupDetails().appGroupSharedDirectory : documentDirectory;
+    let dir = documentDirectory;
+    if (Platform.OS === 'ios') {
+        try {
+            dir = getIOSAppGroupDetails().appGroupSharedDirectory || documentDirectory;
+        } catch { /* sideloaded app */ }
+    }
 
     try {
         const directory = `${dir}/mmkv`;
@@ -180,8 +185,12 @@ export async function deleteFileCache(serverUrl: string) {
 
 export async function deleteFileCacheByDir(dir: string) {
     if (Platform.OS === 'ios') {
-        const appGroupCacheDir = `${getIOSAppGroupDetails().appGroupSharedDirectory}/Library/Caches/${dir}`;
-        await deleteFilesInDir(appGroupCacheDir);
+        try {
+            const appGroupSharedDir = getIOSAppGroupDetails().appGroupSharedDirectory;
+            if (appGroupSharedDir) {
+                await deleteFilesInDir(`${appGroupSharedDir}/Library/Caches/${dir}`);
+            }
+        } catch { /* sideloaded app */ }
     }
 
     const cacheDir = `${cacheDirectory}/${dir}`;
@@ -591,8 +600,12 @@ export const getAllFilesInCachesDirectory = async (serverUrl: string) => {
 
         const promises = [getInfoAsync(`${cacheDirectory}/${urlSafeBase64Encode(serverUrl)}`, {size: true})];
         if (Platform.OS === 'ios') {
-            const cacheDir = `${getIOSAppGroupDetails().appGroupSharedDirectory}/Library/Caches/${urlSafeBase64Encode(serverUrl)}`;
-            promises.push(getInfoAsync(cacheDir, {size: true}));
+            try {
+                const sharedDir = getIOSAppGroupDetails().appGroupSharedDirectory;
+                if (sharedDir) {
+                    promises.push(getInfoAsync(`${sharedDir}/Library/Caches/${urlSafeBase64Encode(serverUrl)}`, {size: true}));
+                }
+            } catch { /* sideloaded app */ }
         }
 
         const dirs = await Promise.allSettled(promises);

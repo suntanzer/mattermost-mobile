@@ -57,15 +57,16 @@ class DatabaseManagerSingleton {
             PlaybookRunModel, PlaybookChecklistModel, PlaybookChecklistItemModel, PlaybookRunPropertyFieldModel, PlaybookRunPropertyValueModel,
         ];
 
+        this.databaseDirectory = `${documentDirectory}/databases/`;
         if (Platform.OS === 'ios') {
             try {
                 const details = getIOSAppGroupDetails();
-                this.databaseDirectory = details.appGroupDatabase || `${documentDirectory}/databases/`;
+                if (details.appGroupDatabase) {
+                    this.databaseDirectory = details.appGroupDatabase;
+                }
             } catch {
-                this.databaseDirectory = `${documentDirectory}/databases/`;
+                // App Group unavailable (sideloaded app), use documents dir
             }
-        } else {
-            this.databaseDirectory = `${documentDirectory}/databases/`;
         }
     }
 
@@ -98,35 +99,41 @@ class DatabaseManagerSingleton {
     * @returns {Promise<AppDatabase|undefined>}
     */
     private createAppDatabase = async (): Promise<AppDatabase|undefined> => {
-        try {
-            const databaseName = APP_DATABASE;
+        const fallbackDir = `${documentDirectory}/databases/`;
+        const dirs = this.databaseDirectory === fallbackDir
+            ? [fallbackDir]
+            : [this.databaseDirectory!, fallbackDir];
 
-            if (Platform.OS === 'android') {
-                await makeDirectoryAsync(this.databaseDirectory!, {intermediates: true});
+        for (const dir of dirs) {
+            try {
+                this.databaseDirectory = dir;
+                const databaseName = APP_DATABASE;
+
+                await makeDirectoryAsync(dir, {intermediates: true});
+                const databaseFilePath = this.getDatabaseFilePath(databaseName);
+                const modelClasses = this.appModels;
+                const schema = appSchema;
+
+                const adapter = new SQLiteAdapter({
+                    dbName: databaseFilePath,
+                    migrationEvents: this.buildMigrationCallbacks(databaseName),
+                    migrations: AppDatabaseMigrations,
+                    jsi: true,
+                    schema,
+                });
+
+                const database = new Database({adapter, modelClasses});
+                const operator = new AppDataOperator(database);
+
+                this.appDatabase = {
+                    database,
+                    operator,
+                };
+
+                return this.appDatabase;
+            } catch (e) {
+                logError('Unable to create the App Database!!', e);
             }
-            const databaseFilePath = this.getDatabaseFilePath(databaseName);
-            const modelClasses = this.appModels;
-            const schema = appSchema;
-
-            const adapter = new SQLiteAdapter({
-                dbName: databaseFilePath,
-                migrationEvents: this.buildMigrationCallbacks(databaseName),
-                migrations: AppDatabaseMigrations,
-                jsi: true,
-                schema,
-            });
-
-            const database = new Database({adapter, modelClasses});
-            const operator = new AppDataOperator(database);
-
-            this.appDatabase = {
-                database,
-                operator,
-            };
-
-            return this.appDatabase;
-        } catch (e) {
-            logError('Unable to create the App Database!!', e);
         }
 
         return undefined;

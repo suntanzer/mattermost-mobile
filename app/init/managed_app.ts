@@ -83,10 +83,13 @@ class ManagedAppSingleton {
 
     setIOSAppGroupIdentifier = () => {
         if (Platform.OS === 'ios') {
-            const {appGroupIdentifier} = getIOSAppGroupDetails();
-
-            if (appGroupIdentifier) {
-                Emm.setAppGroupId(appGroupIdentifier);
+            try {
+                const {appGroupIdentifier} = getIOSAppGroupDetails();
+                if (appGroupIdentifier) {
+                    Emm.setAppGroupId(appGroupIdentifier);
+                }
+            } catch {
+                // App Group unavailable (sideloaded app)
             }
         }
     };
