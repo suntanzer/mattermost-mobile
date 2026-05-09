@@ -9,6 +9,11 @@ import PerformanceMetricsManager from '@managers/performance_metrics_manager';
 import SecurityManager from '@managers/security_manager';
 import WebsocketManager from '@managers/websocket_manager';
 
+import {fetchRoles} from '@actions/remote/role';
+import {fetchMyTeams} from '@actions/remote/team';
+import {fetchMyChannelsForTeam} from '@actions/remote/channel';
+import {fetchMe} from '@actions/remote/user';
+
 type AfterLoginArgs = {
     serverUrl: string;
 }
@@ -39,6 +44,16 @@ export async function loginEntry({serverUrl}: AfterLoginArgs): Promise<{error?: 
             SecurityManager.addServer(serverUrl, clData.config, false, intunePolicy);
             await WebsocketManager.createClient(serverUrl, credentials.token, credentials.preauthSecret);
             await WebsocketManager.initializeClient(serverUrl, 'Login');
+
+            // Fetch roles immediately to prevent read-only channels on fresh install
+            const [meResult, teamsResult] = await Promise.all([
+                fetchMe(serverUrl, true),
+                fetchMyTeams(serverUrl, true),
+            ]);
+            if (meResult.user && teamsResult.teams?.length) {
+                const chResult = await fetchMyChannelsForTeam(serverUrl, teamsResult.teams[0].id, true);
+                await fetchRoles(serverUrl, teamsResult.memberships, chResult?.memberships, meResult.user, false, true);
+            }
         }
 
         return {};
